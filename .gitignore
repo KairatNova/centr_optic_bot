@@ -1,0 +1,23 @@
+тг бот
+.venv
+venv
+__pycache__/
+database.db
+.env
+*.pyc
+.pytest_cache__/
+data/database.db
+.database.db
+.pytest_cache
+.vscode/
+pytest.ini
+bot.log
+audit.log
+logs/
+data/database.db
+--env-file
+--name
+-v
+--restart
+optic-bot
+optic-botlatest
