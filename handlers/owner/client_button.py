@@ -10,7 +10,7 @@ from database.session import AsyncSessionLocal
 from config import OWNER_IDS, SECTION_NAMES
 from forms.forms_fsm import OwnerContentStates, OwnerMainStates
 from keyboards.client_kb import get_client_keyboard
-from keyboards.owner_kb import get_sections_keyboard, get_owner_main_keyboard  
+from keyboards.owner_kb import get_sections_keyboard, get_owner_main_keyboard  # главное Inline-меню
 from services.content import get_content, clear_content_cache
 
 owner_content_router = Router()
@@ -18,7 +18,9 @@ owner_content_router = Router()
 def is_owner(user_id: int) -> bool:
     return user_id in OWNER_IDS
 
-
+# === Вход в редактирование контента из главного меню (callback из owner_main_router) ===
+# Этот хендлер НЕ в этом файле, а в owner_main_router (см. ниже напоминание)
+# Но здесь логика редактирования
 
 @owner_content_router.message(OwnerContentStates.choosing_section, F.text.in_(list(SECTION_NAMES.values())))
 async def section_chosen(message: Message, state: FSMContext):
@@ -57,7 +59,7 @@ async def process_edit_or_cancel(message: Message, state: FSMContext):
         await state.set_state(OwnerContentStates.choosing_section)
         return
 
-
+    # Сохранение нового текста
     data = await state.get_data()
     edit_key = data["edit_key"]
     new_text = message.text.strip()
@@ -83,6 +85,7 @@ async def process_edit_or_cancel(message: Message, state: FSMContext):
     )
     await state.set_state(OwnerContentStates.choosing_section)
 
+# ... ваш код section_chosen и process_edit_or_cancel без изменений ...
 
 # Выход из меню выбора разделов — возврат в главное Inline-меню
 @owner_content_router.message(OwnerContentStates.choosing_section, F.text == "◀ Выйти из панели")
@@ -90,16 +93,16 @@ async def exit_from_content_edit(message: Message, state: FSMContext, bot: Bot):
     if not is_owner(message.from_user.id):
         return
 
-
+    # Скрываем ReplyKeyboard с разделами
     await message.answer("Вы вышли из редактирования контента.", reply_markup=ReplyKeyboardRemove())
 
-
+    # Возвращаем главное Inline-меню владельца
     await bot.send_message(
         message.from_user.id,
         "👑 <b>Панель владельца</b>\n\nВыберите раздел:",
         reply_markup=get_owner_main_keyboard()
     )
-    await state.set_state(OwnerMainStates.main_menu)
+    await state.set_state(OwnerMainStates.main_menu)  # важный переход состояния!
 
 # Универсальный полный выход (если кнопка нажата в любом состоянии редактирования)
 @owner_content_router.message(F.text == "◀ Выйти из панели")
@@ -109,7 +112,7 @@ async def full_exit_from_content(message: Message, state: FSMContext, bot: Bot):
 
     await state.clear()
     await message.answer("Вы вышли из панели владельца.", reply_markup=ReplyKeyboardRemove())
-   
+    #await bot.send_message(message.from_user.id, "Главное меню:", reply_markup=get_client_keyboard())
 
 # Защита от случайных сообщений
 @owner_content_router.message(OwnerContentStates.choosing_section)

@@ -156,7 +156,7 @@ async def process_add_admin(message: Message, state: FSMContext, bot: Bot):
             await session.commit()
             await message.answer(f"✅ {display_name} успешно добавлен в админы!")
 
- 
+        # Обновлённый список после всех действий
         await bot.send_message(message.from_user.id, await get_admins_list_text(), reply_markup=get_admins_keyboard())
         await state.set_state(OwnerAdminsStates.admins_menu)
 

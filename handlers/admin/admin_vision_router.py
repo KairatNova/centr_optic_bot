@@ -8,10 +8,10 @@ from sqlalchemy import select
 from database.models import Person, Vision
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import AdminClientsStates 
+from forms.forms_fsm import AdminClientsStates  # новые состояния для админа
 from datetime import date
 
-
+# Импорт функции показа профиля админа (из admin_clients_router)
 from .admin_clients_router import admin_show_profile  # замените путь, если нужно
 
 admin_vision_router = Router()

@@ -8,7 +8,8 @@ class PrivateChatOnlyMiddleware(BaseMiddleware):
             chat = event.chat if isinstance(event, Message) else event.message.chat if event.message else None
 
             if chat and chat.type != "private":
-
+                # В группах/каналах/супергруппах — молчим
                 return
 
+        # Если чат личный — продолжаем обработку
         return await handler(event, data)

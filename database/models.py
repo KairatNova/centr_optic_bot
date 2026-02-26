@@ -32,7 +32,7 @@ class Person(Base):
         index=True
     )
 
-
+    # Теперь nullable=True позволит регистрировать пользователя без телефона
     phone: Mapped[Optional[str]] = mapped_column(
         String, unique=True, nullable=True, index=True
     )
@@ -59,8 +59,6 @@ class Person(Base):
     visions: Mapped[list["Vision"]] = relationship(
         "Vision", back_populates="person", cascade="all, delete-orphan"
     )
-
-
 class Vision(Base):
     __tablename__ = "visions"
 
@@ -102,7 +100,7 @@ class Vision(Base):
 class BotContent(Base):
     __tablename__ = "bot_contents"
 
-    key: Mapped[str] = mapped_column(String(30), primary_key=True)  
+    key: Mapped[str] = mapped_column(String(30), primary_key=True)  # например: "shop_address", "promotions"
     value: Mapped[str] = mapped_column(Text, nullable=False)
 
 

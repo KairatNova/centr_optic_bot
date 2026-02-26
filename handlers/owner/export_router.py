@@ -105,10 +105,11 @@ async def export_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
         await bot.send_message(callback.from_user.id, "📄 Генерирую Excel с клиентами и последними записями зрения...")
     
         async with AsyncSessionLocal() as session:
-    
+            # Получаем всех клиентов
             persons_result = await session.execute(select(Person))
             persons = persons_result.scalars().all()
     
+            # Для каждого клиента находим последнюю запись (коррелированный подзапрос)
             data = []
             for person in persons:
                 last_vision_result = await session.execute(

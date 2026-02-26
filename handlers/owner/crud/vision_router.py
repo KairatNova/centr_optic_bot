@@ -1,3 +1,6 @@
+# Новый файл: routers/owner_vision_router.py
+# (или добавьте в owner_clients_router.py, если хотите в одном файле)
+
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -8,7 +11,7 @@ from sqlalchemy import select
 from database.models import Person, Vision
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import OwnerClientsStates  
+from forms.forms_fsm import OwnerClientsStates  # добавьте новые состояния в forms_fsm.py
 from datetime import date
 
 from handlers.owner.crud.clients_router import show_client_profile 
@@ -55,7 +58,7 @@ async def cancel_add_vision(callback: CallbackQuery, state: FSMContext, bot: Bot
         async with AsyncSessionLocal() as session:
             person = await session.get(Person, person_id)
         if person:
-            from handlers.owner.crud.clients_router  import show_client_profile 
+            from handlers.owner.crud.clients_router  import show_client_profile  # импорт функции профиля
             await show_client_profile(callback, person, state, bot)
 
     await callback.answer("Добавление записи отменено")
@@ -171,13 +174,14 @@ async def process_note_and_save(message: Message, state: FSMContext, bot: Bot):
         )
         session.add(new_vision)
 
-   
+        # Обновляем последний визит у клиента
         person.last_visit_date = date.today()
 
         await session.commit()
 
     await message.answer("✅ Новая запись зрения успешно добавлена!")
 
-
+    # Возврат в профиль с обновлёнными данными
+ # если в отдельном файле — импорт
     await show_client_profile(message, person, state, bot)
     await state.set_state(OwnerClientsStates.viewing_client_profile)

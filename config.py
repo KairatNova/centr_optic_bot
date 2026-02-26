@@ -4,7 +4,7 @@ from typing import List
 
 load_dotenv(find_dotenv())
 
-
+# Читаемые названия разделов
 SECTION_NAMES = {
     "appointment": "📅 Запись на приём",
     "shop_address": "🕐 График и адрес",

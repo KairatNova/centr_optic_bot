@@ -297,7 +297,7 @@ async def process_search(message: Message, state: FSMContext, bot: Bot):
         await show_profile(message, persons[0], state, bot)
         return
 
-
+    # Несколько совпадений — список
     kb = []
     for p in persons:
         name = p.full_name or p.phone or str(p.telegram_id)
@@ -310,7 +310,7 @@ async def process_search(message: Message, state: FSMContext, bot: Bot):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=kb)
     )
 
-
+# Показ профиля (остальной код без изменений, оставляю как у тебя)
 async def show_profile(trigger, person: Person, state: FSMContext, bot: Bot):
     async with AsyncSessionLocal() as session:
         visions_result = await session.execute(
@@ -353,8 +353,7 @@ async def show_profile(trigger, person: Person, state: FSMContext, bot: Bot):
 
     await state.update_data(person_id=person.id)
     await state.set_state(OwnerBroadcastStates.viewing_profile)
-
-
+# Выбор профиля из списка совпадений
 @owner_broadcast_router.callback_query(F.data.startswith("profile_"))
 async def select_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
     person_id = int(callback.data.split("_")[1])
@@ -364,7 +363,7 @@ async def select_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
         await show_profile(callback, person, state, bot)
     await callback.answer()
 
-
+# Отправка сообщения
 @owner_broadcast_router.callback_query(OwnerBroadcastStates.viewing_profile, F.data.startswith("send_msg_"))
 async def start_send_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await bot.send_message(
@@ -414,7 +413,7 @@ async def send_message_to_client(message: Message, state: FSMContext, bot: Bot):
     await show_profile(message, person, state, bot)
 
 # Назад к поиску из профиля
-
+# Для кнопки "back_to_search" — возвращаем в поиск с правильной клавиатурой отмены
 @owner_broadcast_router.callback_query(OwnerBroadcastStates.viewing_profile, F.data == "back_to_search")
 async def back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await bot.send_message(
@@ -431,7 +430,7 @@ async def back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
 @owner_broadcast_router.callback_query(F.data == "broadcast_back")
 async def cancel_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    await state.clear()  
+    await state.clear()  # сбрасываем состояние
     await bot.send_message(
         callback.from_user.id,
         "🔙 Возврат в главное меню владельца",

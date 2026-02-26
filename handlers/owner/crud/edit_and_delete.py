@@ -9,7 +9,7 @@ from sqlalchemy import select, delete
 from database.models import Person, Vision
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import OwnerClientsStates 
+from forms.forms_fsm import OwnerClientsStates  # добавьте новые состояния
 from datetime import date
 
 from handlers.owner.crud.clients_router import show_client_profile

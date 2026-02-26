@@ -49,6 +49,12 @@ def _tail_lines(path: Path, limit: int) -> str:
     return "\n".join(text.splitlines()[-limit:])
 
 
+#def _ram_mb() -> float:
+#    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+#    # Linux reports KB, macOS reports bytes
+#    if sys.platform == "darwin":
+#        return usage / (1024 * 1024)
+#    return usage / 1024
 
 
 

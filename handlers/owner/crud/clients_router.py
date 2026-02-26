@@ -152,11 +152,11 @@ async def show_client_profile(trigger, person: Person, state: FSMContext, bot: B
     if isinstance(trigger, Message):
         await trigger.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     else:
-
+        # CallbackQuery — удаляем старое, если возможно
         try:
             await trigger.message.delete()
         except TelegramBadRequest:
-            pass  
+            pass  # уже удалено — нормально
 
         await bot.send_message(
             trigger.from_user.id,
@@ -211,7 +211,8 @@ async def cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bo
             await show_client_profile(callback, person, state, bot)
 
     await callback.answer("Редактирование отменено")
-
+# В owner_clients_router.py замените хендлер process_edit_client на этот (остальной код остаётся без изменений)
+# В owner_clients_router.py, замените хендлер process_edit_client на этот
 
 @owner_clients_router.message(OwnerClientsStates.editing_client_data)
 async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
@@ -259,7 +260,7 @@ async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
             await state.set_state(OwnerClientsStates.viewing_client_profile)
             return
 
-
+        # Краткий обновлённый профиль в требуемом порядке
         profile_text = "<b>Обновлённый профиль клиента:</b>\n\n"
         profile_text += f"ФИО: {person.full_name or '—'}\n"
         profile_text += f"Возраст: {person.age or '—'}\n"
@@ -269,7 +270,7 @@ async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
         profile_text += f"Дата регистрации: {person.created_at.date() if person.created_at else '—'}\n"
         profile_text += f"Последний визит: {person.last_visit_date or '—'}"
 
-
+        # Кнопки как в полном профиле
     kb = [
         [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person.id}")],
       

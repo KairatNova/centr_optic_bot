@@ -17,7 +17,11 @@ admin_broadcast_router = Router()
 
 
 async def has_admin_access(user_id: int) -> bool:
-    
+    """
+    Проверяет, имеет ли пользователь права администратора или владельца.
+    - Если user_id в OWNER_IDS → доступ есть (даже если role не "owner").
+    - Если role в БД == "admin" или "owner" → доступ есть.
+    """
     if user_id in OWNER_IDS:
         return True
 
@@ -203,7 +207,7 @@ async def select_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
     async with AsyncSessionLocal() as session:
         person = await session.get(Person, person_id)
     if person:
-        await show_client_profile(callback, person, state, bot)  
+        await show_client_profile(callback, person, state, bot)  # ← callback как trigger
     await callback.answer()
 
 # Начать отправку сообщения

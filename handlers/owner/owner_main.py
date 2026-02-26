@@ -53,7 +53,8 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
             "📝 <b>Редактирование контента бота</b>\n\nВыберите раздел:",
             reply_markup=get_sections_keyboard()
         )
-        await state.set_state(OwnerContentStates.choosing_section)  
+        await state.set_state(OwnerContentStates.choosing_section)  # переход в состояние редактирования
+
     elif action == "owner_dev_panel":
         await bot.send_message(
             callback.from_user.id,
@@ -86,7 +87,7 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
         await bot.send_message(
             callback.from_user.id,
             "📨 <b>Рассылки</b>\n\nВыберите действие:",
-            reply_markup=get_broadcast_submenu_keyboard()  
+            reply_markup=get_broadcast_submenu_keyboard()  # новая клавиатура, см. ниже
         )
         await state.set_state(OwnerBroadcastStates.broadcast_menu)
 

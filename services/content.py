@@ -5,7 +5,7 @@ from typing import Dict
 from database.models import BotContent
 from database.session import AsyncSessionLocal
 from config import SECTION_NAMES
-
+# Глобальный кэш
 _content_cache: Dict[str, str] | None = None
 
 async def _load_content() -> Dict[str, str]:
@@ -30,7 +30,7 @@ def clear_content_cache() -> None:
 
 
 
-
+  # или откуда у вас SECTION_NAMES
 
 async def init_bot_content():
     default_texts = {

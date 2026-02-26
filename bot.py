@@ -11,7 +11,7 @@ from aiogram.enums import ParseMode
 
 from database.init_db import init_db
 
-
+# Импорты роутеров (группируем по типу)
 from handlers.owner.dev_panel_router import dev_panel_router
 from handlers.start import start_router
 from handlers.client import client_router
@@ -119,8 +119,8 @@ async def main():
 
 
     dp.update.middleware(PrivateChatOnlyMiddleware())
-    # 6. Подключение роутеров 
-  
+    # 6. Подключение роутеров (ВАЖНО: порядок!)
+    # Сначала общие
     dp.include_router(start_router)
     dp.include_router(client_router)
 
