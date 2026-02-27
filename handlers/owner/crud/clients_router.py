@@ -167,52 +167,7 @@ async def show_client_profile(trigger, person: Person, state: FSMContext, bot: B
     await state.update_data(person_id=person.id)
     await state.set_state(OwnerClientsStates.viewing_client_profile)
 
-@owner_clients_router.callback_query(F.data.startswith("client_profile_"))
-async def select_client_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    person_id = int(callback.data.split("_")[2])
-    async with AsyncSessionLocal() as session:
-        person = await session.get(Person, person_id)
-    if person:
-        await show_client_profile(callback, person, state, bot)
-    await callback.answer()
-
-@owner_clients_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data.startswith("edit_client_"))
-async def start_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    person_id = int(callback.data.split("_")[2])
-    await state.update_data(person_id=person_id)
-
-    await bot.send_message(
-        callback.from_user.id,
-        "✏ <b>Редактирование данных клиента</b>\n\n"
-        "Введите данные через пробел в формате:\n"
-        "Имя Фамилия Возраст\n\n"
-        "Примеры:\n"
-        "Иван Иванов 25\n"
-        "Иван Иванов\n"
-        "Иван 25\n"
-        "25\n\n"
-        "Пропущенные поля останутся без изменений.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="cancel_edit_client")]
-        ])
-    )
-    await state.set_state(OwnerClientsStates.editing_client_data)
-    await callback.answer()
-
-@owner_clients_router.callback_query(OwnerClientsStates.editing_client_data, F.data == "cancel_edit_client")
-async def cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    data = await state.get_data()
-    person_id = data.get("person_id")
-
-    if person_id:
-        async with AsyncSessionLocal() as session:
-            person = await session.get(Person, person_id)
-        if person:
-            await show_client_profile(callback, person, state, bot)
-
-    await state.set_state(OwnerClientsStates.viewing_client_profile)
-    await callback.answer("Редактирование отменено")
-
+    
 @owner_clients_router.message(OwnerClientsStates.editing_client_data)
 async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
     if not is_owner(message.from_user.id):
@@ -279,3 +234,49 @@ async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
 
         await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
         await state.set_state(OwnerClientsStates.viewing_client_profile)
+
+@owner_clients_router.callback_query(F.data.startswith("client_profile_"))
+async def select_client_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    person_id = int(callback.data.split("_")[2])
+    async with AsyncSessionLocal() as session:
+        person = await session.get(Person, person_id)
+    if person:
+        await show_client_profile(callback, person, state, bot)
+    await callback.answer()
+
+@owner_clients_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data.startswith("edit_client_"))
+async def start_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    person_id = int(callback.data.split("_")[2])
+    await state.update_data(person_id=person_id)
+
+    await bot.send_message(
+        callback.from_user.id,
+        "✏ <b>Редактирование данных клиента</b>\n\n"
+        "Введите данные через пробел в формате:\n"
+        "Имя Фамилия Возраст\n\n"
+        "Примеры:\n"
+        "Иван Иванов 25\n"
+        "Иван Иванов\n"
+        "Иван 25\n"
+        "25\n\n"
+        "Пропущенные поля останутся без изменений.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="cancel_edit_client")]
+        ])
+    )
+    await state.set_state(OwnerClientsStates.editing_client_data)
+    await callback.answer()
+
+@owner_clients_router.callback_query(OwnerClientsStates.editing_client_data, F.data == "cancel_edit_client")
+async def cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    person_id = data.get("person_id")
+
+    if person_id:
+        async with AsyncSessionLocal() as session:
+            person = await session.get(Person, person_id)
+        if person:
+            await show_client_profile(callback, person, state, bot)
+
+    await state.set_state(OwnerClientsStates.viewing_client_profile)
+    await callback.answer("Редактирование отменено")
