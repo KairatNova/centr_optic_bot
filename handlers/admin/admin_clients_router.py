@@ -1,5 +1,3 @@
-# Новый файл: routers/admin_clients_router.py
-
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -173,6 +171,7 @@ async def admin_show_profile(trigger, person: Person, state: FSMContext, bot: Bo
         [InlineKeyboardButton(text="◀ В админ-меню", callback_data="admin_back_to_menu")],
     ]
 
+    # Всегда отправляем новое сообщение (чтобы избежать ошибки edit not found)
     if isinstance(trigger, Message):
         await trigger.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     else:
@@ -200,32 +199,7 @@ async def select_admin_profile(callback: CallbackQuery, state: FSMContext, bot: 
         await admin_show_profile(callback, person, state, bot)
     await callback.answer()
 
-# Назад к поиску
-@admin_clients_router.callback_query(F.data == "admin_back_to_search")
-async def admin_back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    await bot.send_message(
-        callback.from_user.id,
-        "🔍 <b>Поиск клиента</b>\n\n"
-        "Введите номер телефона, telegram_id или часть имени/фамилии.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_clients_cancel")]
-        ])
-    )
-    await state.set_state(AdminClientsStates.waiting_search_query)
-    await callback.answer()
-
-# Возврат в админ-меню
-@admin_clients_router.callback_query(F.data == "admin_back_to_menu")
-async def admin_back_to_menu(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    await bot.send_message(
-        callback.from_user.id,
-        "🛠 <b>Панель администратора</b>\n\nВыберите раздел:",
-        reply_markup=get_admin_main_keyboard()
-    )
-    await state.set_state(AdminMainStates.admin_menu)
-    await callback.answer()
-
-# Начать редактирование
+# Начать редактирование данных клиента
 @admin_clients_router.callback_query(AdminClientsStates.viewing_profile, F.data.startswith("admin_edit_client_"))
 async def admin_start_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
     if not await has_admin_access(callback.from_user.id):
@@ -294,10 +268,10 @@ async def admin_process_edit_client(message: Message, state: FSMContext, bot: Bo
             return
 
         # Сохраняем все нужные данные ДО commit
-        full_name = person.full_name
-        age = person.age
-        phone = person.phone
-        telegram_id = person.telegram_id
+        full_name = person.full_name or '—'
+        age = person.age or '—'
+        phone = person.phone or '—'
+        telegram_id = person.telegram_id or '—'
         role = person.role
         reg_date = person.created_at.date() if person.created_at else '—'
         last_visit = person.last_visit_date or '—'
@@ -324,12 +298,12 @@ async def admin_process_edit_client(message: Message, state: FSMContext, bot: Bo
         else:
             await message.answer("Ничего не изменено. Укажите хотя бы одно значение.")
 
-        # Формируем профиль из сохранённых переменных (без доступа к person после commit)
+        # Формируем обновлённый профиль из сохранённых переменных (без доступа к person после commit)
         profile_text = "<b>Обновлённый профиль клиента:</b>\n\n"
-        profile_text += f"ФИО: {full_name or '—'}\n"
-        profile_text += f"Возраст: {age or '—'}\n"
-        profile_text += f"Телефон: {phone or '—'}\n"
-        profile_text += f"Telegram ID: {telegram_id or '—'}\n"
+        profile_text += f"ФИО: {full_name}\n"
+        profile_text += f"Возраст: {age}\n"
+        profile_text += f"Телефон: {phone}\n"
+        profile_text += f"Telegram ID: {telegram_id}\n"
         profile_text += f"Роль: {role}\n"
         profile_text += f"Дата регистрации: {reg_date}\n"
         profile_text += f"Последний визит: {last_visit}"
@@ -344,3 +318,46 @@ async def admin_process_edit_client(message: Message, state: FSMContext, bot: Bo
 
         await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
         await state.set_state(AdminClientsStates.viewing_profile)
+
+# Назад к поиску
+@admin_clients_router.callback_query(F.data == "admin_back_to_search")
+async def admin_back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not await has_admin_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
+    await bot.send_message(
+        callback.from_user.id,
+        "🔍 <b>Поиск клиента</b>\n\n"
+        "Введите номер телефона, telegram_id или часть имени/фамилии.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_clients_cancel")]
+        ])
+    )
+    await state.set_state(AdminClientsStates.waiting_search_query)
+    await callback.answer("Возврат к поиску")
+
+# В админ-меню
+@admin_clients_router.callback_query(F.data == "admin_back_to_menu")
+async def admin_back_to_menu(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not await has_admin_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
+    await bot.send_message(
+        callback.from_user.id,
+        "🛠 <b>Панель администратора</b>\n\nВыберите раздел:",
+        reply_markup=get_admin_main_keyboard()
+    )
+    await state.set_state(AdminMainStates.admin_menu)
+    await callback.answer("Возврат в меню")
