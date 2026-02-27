@@ -224,3 +224,123 @@ async def admin_back_to_menu(callback: CallbackQuery, state: FSMContext, bot: Bo
     )
     await state.set_state(AdminMainStates.admin_menu)
     await callback.answer()
+
+# Начать редактирование
+@admin_clients_router.callback_query(AdminClientsStates.viewing_profile, F.data.startswith("admin_edit_client_"))
+async def admin_start_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not await has_admin_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    person_id = int(callback.data.split("_")[3])
+    await state.update_data(person_id=person_id)
+
+    await bot.send_message(
+        callback.from_user.id,
+        "✏ <b>Редактирование данных клиента</b>\n\n"
+        "Введите данные через пробел в формате:\n"
+        "Имя Фамилия Возраст\n\n"
+        "Примеры:\n"
+        "Иван Иванов 25\n"
+        "Иван Иванов\n"
+        "Иван 25\n"
+        "25\n\n"
+        "Пропущенные поля останутся без изменений.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_edit_client")]
+        ])
+    )
+    await state.set_state(AdminClientsStates.editing_client_data)
+    await callback.answer()
+
+# Отмена редактирования
+@admin_clients_router.callback_query(AdminClientsStates.editing_client_data, F.data == "admin_cancel_edit_client")
+async def admin_cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not await has_admin_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
+    data = await state.get_data()
+    person_id = data.get("person_id")
+
+    if person_id:
+        async with AsyncSessionLocal() as session:
+            person = await session.get(Person, person_id)
+        if person:
+            await admin_show_profile(callback, person, state, bot)
+
+    await state.set_state(AdminClientsStates.viewing_profile)
+    await callback.answer("Редактирование отменено")
+
+# Обработка редактирования данных клиента
+@admin_clients_router.message(AdminClientsStates.editing_client_data)
+async def admin_process_edit_client(message: Message, state: FSMContext, bot: Bot):
+    if not await has_admin_access(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    person_id = data.get("person_id")
+
+    async with AsyncSessionLocal() as session:
+        person = await session.get(Person, person_id)
+        if not person:
+            await message.answer("❌ Клиент не найден.")
+            await state.set_state(AdminClientsStates.waiting_search_query)
+            return
+
+        # Сохраняем все нужные данные ДО commit
+        full_name = person.full_name
+        age = person.age
+        phone = person.phone
+        telegram_id = person.telegram_id
+        role = person.role
+        reg_date = person.created_at.date() if person.created_at else '—'
+        last_visit = person.last_visit_date or '—'
+
+        words = message.text.strip().split()
+
+        changes = []
+
+        if len(words) >= 1:
+            person.first_name = words[0]
+            changes.append("Имя")
+
+        if len(words) >= 2:
+            person.last_name = words[1]
+            changes.append("Фамилия")
+
+        if len(words) >= 3 and words[2].isdigit():
+            person.age = int(words[2])
+            changes.append("Возраст")
+
+        if changes:
+            await session.commit()
+            await message.answer(f"✅ Данные обновлены: {', '.join(changes)}")
+        else:
+            await message.answer("Ничего не изменено. Укажите хотя бы одно значение.")
+
+        # Формируем профиль из сохранённых переменных (без доступа к person после commit)
+        profile_text = "<b>Обновлённый профиль клиента:</b>\n\n"
+        profile_text += f"ФИО: {full_name or '—'}\n"
+        profile_text += f"Возраст: {age or '—'}\n"
+        profile_text += f"Телефон: {phone or '—'}\n"
+        profile_text += f"Telegram ID: {telegram_id or '—'}\n"
+        profile_text += f"Роль: {role}\n"
+        profile_text += f"Дата регистрации: {reg_date}\n"
+        profile_text += f"Последний визит: {last_visit}"
+
+        kb = [
+            [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"admin_edit_client_{person_id}")],
+            [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"admin_add_vision_{person_id}")],
+            [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"admin_view_all_visions_{person_id}")],
+            [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="admin_back_to_search")],
+            [InlineKeyboardButton(text="◀ В админ-меню", callback_data="admin_back_to_menu")],
+        ]
+
+        await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+        await state.set_state(AdminClientsStates.viewing_profile)

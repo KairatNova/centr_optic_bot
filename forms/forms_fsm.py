@@ -47,16 +47,7 @@ class OwnerClientsStates(StatesGroup):
 
 
 
-# Новые состояния (добавьте в OwnerClientsStates в forms_fsm.py)
 
-
-'''
-class OwnerVisionStates(StatesGroup):
-    viewing_visions = State()           # просмотр списка записей (data: person_id, current_index)
-    editing_vision = State()            # редактирование одной записи
-    waiting_sph_cyl_axis_edit = State()
-    waiting_pd_lens_frame_edit = State()
-    waiting_note_edit = State()
     waiting_delete_confirm = State()    # подтверждение удаления'''
 
 
