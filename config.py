@@ -34,7 +34,11 @@ def _parse_id_list(raw_value: str) -> List[int]:
 
 
 BOT_TOKEN = _get_required_env("BOT_TOKEN")
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///data/database.db")
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite+aiosqlite:///./database.db"  # fallback для локальной разработки
+)
 
 OWNER_IDS = _parse_id_list(_get_required_env("OWNER_IDS"))
 
