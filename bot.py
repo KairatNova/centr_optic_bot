@@ -37,7 +37,13 @@ from middlewares.private import PrivateChatOnlyMiddleware
 from keyboards.client_kb import set_commands
 from middlewares.private import PrivateChatOnlyMiddleware
 from services.content import get_bot_content, init_bot_content
-from config import BOT_TOKEN, OWNER_IDS, AUTO_BACKUP_INTERVAL_HOURS, AUTO_BACKUP_TARGET_IDS
+from config import (
+    BOT_TOKEN,
+    OWNER_IDS,
+    AUTO_BACKUP_INTERVAL_HOURS,
+    AUTO_BACKUP_TARGET_IDS,
+    CRITICAL_ALERT_OWNER_ID,
+)
 from middlewares.anti_spam import RateLimitMiddleware
 from middlewares.metrics import MetricsMiddleware
 from utils.owner_alerts import OwnerAlertHandler
@@ -57,7 +63,7 @@ logging.basicConfig(
         RotatingFileHandler(LOG_DIR / "bot.log", maxBytes=5_000_000, backupCount=3, encoding="utf-8"),
     ],
 )
-owner_alert_handler = OwnerAlertHandler(OWNER_IDS)
+owner_alert_handler = OwnerAlertHandler(OWNER_IDS, critical_owner_id=CRITICAL_ALERT_OWNER_ID)
 owner_alert_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 logging.getLogger().addHandler(owner_alert_handler)
 

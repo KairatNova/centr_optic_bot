@@ -32,15 +32,18 @@ def _parse_id_list(raw_value: str) -> List[int]:
         values.append(int(item))
     return values
 
-
 BOT_TOKEN = _get_required_env("BOT_TOKEN")
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite+aiosqlite:///./database.db"  # fallback для локальной разработки
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///data/database.db")
 
 OWNER_IDS = _parse_id_list(_get_required_env("OWNER_IDS"))
+
+CRITICAL_ALERT_OWNER_ID_RAW = os.getenv("CRITICAL_ALERT_OWNER_ID", "").strip()
+if CRITICAL_ALERT_OWNER_ID_RAW:
+    if not CRITICAL_ALERT_OWNER_ID_RAW.isdigit():
+        raise RuntimeError("Environment variable CRITICAL_ALERT_OWNER_ID must be an integer")
+    CRITICAL_ALERT_OWNER_ID = int(CRITICAL_ALERT_OWNER_ID_RAW)
+else:
+    CRITICAL_ALERT_OWNER_ID = None
 
 
 AUTO_BACKUP_INTERVAL_HOURS = int(os.getenv("AUTO_BACKUP_INTERVAL_HOURS", "24"))
