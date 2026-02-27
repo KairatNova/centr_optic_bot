@@ -297,4 +297,30 @@ async def cancel_edit_vision(callback: CallbackQuery, state: FSMContext, bot: Bo
     await callback.answer("Редактирование отменено")
 
 
+# Хендлер для кнопки "Назад в профиль" (добавьте в конец файла)
+@owner_vision_edit_router.callback_query(F.data.startswith("back_to_profile_"))
+async def back_to_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    # Извлекаем person_id из callback_data
+    # back_to_profile_123 → 123
+    person_id = int(callback.data.split("_")[3])
+
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass  # сообщение уже удалено — нормально
+
+    async with AsyncSessionLocal() as session:
+        person = await session.get(Person, person_id)
+        if not person:
+            await callback.answer("Клиент не найден.", show_alert=True)
+            return
+
+    # Возврат в профиль (используем существующую функцию)
+    await show_client_profile(callback, person, state, bot)
+    await callback.answer("Возврат в профиль")
+
 

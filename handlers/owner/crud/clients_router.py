@@ -99,7 +99,7 @@ async def process_search(message: Message, state: FSMContext, bot: Bot):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=kb)
     )
 
-# Показ профиля клиента (всегда новое сообщение)
+# Показ профиля клиента — всегда новое сообщение
 async def show_client_profile(trigger, person: Person, state: FSMContext, bot: Bot):
     async with AsyncSessionLocal() as session:
         last_vision = await session.execute(
@@ -178,6 +178,10 @@ async def select_client_profile(callback: CallbackQuery, state: FSMContext, bot:
 
 @owner_clients_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data.startswith("edit_client_"))
 async def start_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
     person_id = int(callback.data.split("_")[2])
     await state.update_data(person_id=person_id)
 
@@ -286,6 +290,7 @@ async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
             [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
         ]
 
+        # Отправляем обновлённый профиль сразу после редактирования
         await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
         await state.set_state(OwnerClientsStates.viewing_client_profile)
 
@@ -296,13 +301,18 @@ async def to_main_panel(callback: CallbackQuery, state: FSMContext, bot: Bot):
         await callback.answer("Доступ запрещён", show_alert=True)
         return
 
-    await state.set_state(OwnerMainStates.main_menu)
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
     await bot.send_message(
         callback.from_user.id,
         "👑 <b>Панель владельца</b>\n\nВыберите раздел:",
         reply_markup=get_owner_main_keyboard()
     )
-    await callback.answer()
+    await state.set_state(OwnerMainStates.main_menu)
+    await callback.answer("Возврат в главное меню")
 
 # Назад к поиску
 @owner_clients_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data == "back_to_clients_search")
