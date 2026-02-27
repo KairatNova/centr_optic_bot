@@ -98,6 +98,7 @@ async def process_search(message: Message, state: FSMContext, bot: Bot):
         f"🔍 Найдено {len(persons)} клиентов. Выберите:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=kb)
     )
+
 # Функция показа профиля — всегда новое сообщение
 async def show_client_profile(trigger, person: Person, state: FSMContext, bot: Bot):
     async with AsyncSessionLocal() as session:
@@ -152,11 +153,10 @@ async def show_client_profile(trigger, person: Person, state: FSMContext, bot: B
     if isinstance(trigger, Message):
         await trigger.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     else:
-        # CallbackQuery — удаляем старое, если возможно
         try:
             await trigger.message.delete()
         except TelegramBadRequest:
-            pass  # уже удалено — нормально
+            pass
 
         await bot.send_message(
             trigger.from_user.id,
@@ -210,9 +210,8 @@ async def cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bo
         if person:
             await show_client_profile(callback, person, state, bot)
 
+    await state.set_state(OwnerClientsStates.viewing_client_profile)
     await callback.answer("Редактирование отменено")
-# В owner_clients_router.py замените хендлер process_edit_client на этот (остальной код остаётся без изменений)
-# В owner_clients_router.py, замените хендлер process_edit_client на этот
 
 @owner_clients_router.message(OwnerClientsStates.editing_client_data)
 async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
@@ -226,134 +225,57 @@ async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
         person = await session.get(Person, person_id)
         if not person:
             await message.answer("❌ Клиент не найден.")
-            await state.set_state(OwnerClientsStates.clients_menu)
+            await state.set_state(OwnerClientsStates.waiting_search_query)  # или другое состояние
             return
+
+        # Сохраняем данные ДО commit
+        full_name = person.full_name
+        age = person.age
+        phone = person.phone
+        telegram_id = person.telegram_id
+        role = person.role
+        reg_date = person.created_at.date() if person.created_at else '—'
+        last_visit = person.last_visit_date or '—'
 
         words = message.text.strip().split()
 
         changes = []
 
         if len(words) >= 1:
-            old_first = person.first_name
             person.first_name = words[0]
-            if old_first != person.first_name:
-                changes.append("Имя")
+            changes.append("Имя")
 
         if len(words) >= 2:
-            old_last = person.last_name
             person.last_name = words[1]
-            if old_last != person.last_name:
-                changes.append("Фамилия")
+            changes.append("Фамилия")
 
         if len(words) >= 3 and words[2].isdigit():
-            old_age = person.age
             person.age = int(words[2])
-            if old_age != person.age:
-                changes.append("Возраст")
+            changes.append("Возраст")
 
         if changes:
             await session.commit()
             await message.answer(f"✅ Данные обновлены: {', '.join(changes)}")
         else:
             await message.answer("Ничего не изменено. Укажите хотя бы одно значение.")
-            await show_client_profile(message, person, state, bot)
-            await state.set_state(OwnerClientsStates.viewing_client_profile)
-            return
 
-        # Краткий обновлённый профиль в требуемом порядке
+        # Формируем профиль из сохранённых данных (без обращения к объекту после commit)
         profile_text = "<b>Обновлённый профиль клиента:</b>\n\n"
-        profile_text += f"ФИО: {person.full_name or '—'}\n"
-        profile_text += f"Возраст: {person.age or '—'}\n"
-        profile_text += f"Телефон: {person.phone or '—'}\n"
-        profile_text += f"Telegram ID: {person.telegram_id or '—'}\n"
-        profile_text += f"Роль: {person.role}\n"
-        profile_text += f"Дата регистрации: {person.created_at.date() if person.created_at else '—'}\n"
-        profile_text += f"Последний визит: {person.last_visit_date or '—'}"
+        profile_text += f"ФИО: {full_name or '—'}\n"
+        profile_text += f"Возраст: {age or '—'}\n"
+        profile_text += f"Телефон: {phone or '—'}\n"
+        profile_text += f"Telegram ID: {telegram_id or '—'}\n"
+        profile_text += f"Роль: {role}\n"
+        profile_text += f"Дата регистрации: {reg_date}\n"
+        profile_text += f"Последний визит: {last_visit}"
 
-        # Кнопки как в полном профиле
-    kb = [
-        [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person.id}")],
-      
-        [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person.id}")],
-        [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"view_all_visions_{person.id}")],
-        [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="back_to_clients_search")],
-        [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
-    ]
+        kb = [
+            [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person_id}")],
+            [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person_id}")],
+            [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"view_all_visions_{person_id}")],
+            [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="back_to_clients_search")],
+            [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
+        ]
 
-    await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
-
-    await state.set_state(OwnerClientsStates.viewing_client_profile)
-
-# Кнопка "Главная панель" — сразу в главное меню
-@owner_clients_router.callback_query(F.data == "to_main_panel")
-async def to_main_panel(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    await state.set_state(OwnerMainStates.main_menu)
-    await bot.send_message(
-        callback.from_user.id,
-        "👑 <b>Панель владельца</b>\n\nВыберите раздел:",
-        reply_markup=get_owner_main_keyboard()
-    )
-    await callback.answer()
-
-
-# Назад к поиску
-@owner_clients_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data == "back_to_clients_search")
-async def back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    await bot.send_message(
-        callback.from_user.id,
-        "🔍 <b>Поиск клиента</b>\n\n"
-        "Введите номер телефона, telegram_id или часть имени/фамилии.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="clients_cancel_search")]
-        ])
-    )
-    await state.set_state(OwnerClientsStates.waiting_search_query)
-    await callback.answer("Возврат к поиску")
-
-
-
-@owner_clients_router.callback_query(F.data.startswith("back_to_profile_"))
-async def back_to_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    person_id = int(callback.data.split("_")[3])
-
-    if not is_owner(callback.from_user.id):
-        await callback.answer("Доступ запрещён", show_alert=True)
-        return
-
-    try:
-        await callback.message.delete()
-    except TelegramBadRequest:
-        pass
-
-    async with AsyncSessionLocal() as session:
-        person = await session.get(Person, person_id)
-        if not person:
-            await callback.answer("Клиент не найден.", show_alert=True)
-            return
-
-    await show_client_profile(callback, person, state, bot)
-    await callback.answer("Возврат в профиль")
-
-
-@owner_clients_router.callback_query(OwnerClientsStates.editing_client_data, F.data == "cancel_edit_client")
-async def cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    if not is_owner(callback.from_user.id):
-        await callback.answer("Доступ запрещён", show_alert=True)
-        return
-
-    try:
-        await callback.message.delete()
-    except TelegramBadRequest:
-        pass
-
-    data = await state.get_data()
-    person_id = data.get("person_id")
-
-    if person_id:
-        async with AsyncSessionLocal() as session:
-            person = await session.get(Person, person_id)
-        if person:
-            await show_client_profile(callback, person, state, bot)
-
-    await state.set_state(OwnerClientsStates.viewing_client_profile)
-    await callback.answer("Редактирование отменено")
+        await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+        await state.set_state(OwnerClientsStates.viewing_client_profile)
