@@ -140,7 +140,6 @@ async def process_pd_lens_frame(message: Message, state: FSMContext, bot: Bot):
     )
     await state.set_state(OwnerClientsStates.waiting_note)
 
-# Шаг 3: Note и сохранение
 @owner_vision_router.message(OwnerClientsStates.waiting_note)
 async def process_note_and_save(message: Message, state: FSMContext, bot: Bot):
     if not is_owner(message.from_user.id):
@@ -151,6 +150,7 @@ async def process_note_and_save(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     person_id = data["person_id"]
 
+    # === Важно: всё в одной сессии до commit ===
     async with AsyncSessionLocal() as session:
         person = await session.get(Person, person_id)
         if not person:
@@ -158,6 +158,7 @@ async def process_note_and_save(message: Message, state: FSMContext, bot: Bot):
             await state.clear()
             return
 
+        # Создаём новую запись
         new_vision = Vision(
             person_id=person_id,
             visit_date=date.today(),
@@ -174,14 +175,40 @@ async def process_note_and_save(message: Message, state: FSMContext, bot: Bot):
         )
         session.add(new_vision)
 
-        # Обновляем последний визит у клиента
+        # Обновляем последний визит
         person.last_visit_date = date.today()
 
         await session.commit()
 
+        # Сохраняем нужные данные ДО выхода из сессии
+        full_name = person.full_name or '—'
+        age = person.age or '—'
+        phone = person.phone or '—'
+        telegram_id = person.telegram_id or '—'
+        role = person.role
+        reg_date = person.created_at.date() if person.created_at else '—'
+        last_visit = person.last_visit_date or '—'
+
+    # === Теперь формируем профиль из сохранённых переменных ===
     await message.answer("✅ Новая запись зрения успешно добавлена!")
 
-    # Возврат в профиль с обновлёнными данными
- # если в отдельном файле — импорт
-    await show_client_profile(message, person, state, bot)
+    profile_text = f"👤 <b>Профиль клиента</b>\n\n"
+    profile_text += f"ФИО: {full_name}\n"
+    profile_text += f"Возраст: {age}\n"
+    profile_text += f"Телефон: {phone}\n"
+    profile_text += f"Telegram ID: {telegram_id}\n"
+    profile_text += f"Роль: {role}\n"
+    profile_text += f"Дата регистрации: {reg_date}\n"
+    profile_text += f"Последний визит: {last_visit}\n\n"
+    profile_text += "<i>Запись зрения добавлена успешно</i>"
+
+    kb = [
+        [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person_id}")],
+        [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person_id}")],
+        [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"view_all_visions_{person_id}")],
+        [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="back_to_clients_search")],
+        [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
+    ]
+
+    await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     await state.set_state(OwnerClientsStates.viewing_client_profile)
