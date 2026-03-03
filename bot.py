@@ -127,8 +127,7 @@ async def main():
     dp.update.middleware(PrivateChatOnlyMiddleware())
     # 6. Подключение роутеров (ВАЖНО: порядок!)
     # Сначала общие
-    dp.include_router(start_router)
-    dp.include_router(client_router)
+  
 
     # Потом владелец
     dp.include_router(owner_main_router)
@@ -148,6 +147,8 @@ async def main():
     dp.include_router(admin_vision_edit_router)
     dp.include_router(admin_vision_router)
 
+    dp.include_router(start_router)
+    dp.include_router(client_router)
 
     auto_backup_task = asyncio.create_task(
         auto_backup_worker(bot, target_ids=AUTO_BACKUP_TARGET_IDS, interval_hours=AUTO_BACKUP_INTERVAL_HOURS)
